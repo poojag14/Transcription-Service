@@ -13,7 +13,7 @@ IMPORTANT
 STEPS TO RUN
 - Run app.py
 - Run testwebhook.py
-- Lastly, run the curl command sending the input json with audio file to the app.py endpoint (/transcribe)
+- Lastly, run the curl command sending the input json with audio url to the app.py endpoint (/transcribe)
 
 - You can view the results on the terminal where you ran testwebhook.py.
 
