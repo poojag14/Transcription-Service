@@ -48,15 +48,14 @@ def handle_transcription_request(data):
     """
     try:
         # Extract required and optional fields from the 'data' dictionary
-        job_id = data.get("job_id") # Use .get() for safer access
-        lead_id = data.get("lead_id") # Use .get()
-        audio_file_path = data.get("audio_file") # THIS IS THE CRUCIAL CHANGE
+        jobId = data.get("jobId")
+        fileUrl = data.get("fileUrl") 
 
         # Generate a unique filename
-        # local_filename = f"audio_{uuid.uuid4().hex}.mp3"
+        local_filename = f"audio_{uuid.uuid4().hex}.mp3" #Uncomment this when we get link
 
         # Transcribe and diarize the audio
-        result = process_transcription(audio_file_path)
+        result = process_transcription(fileUrl, local_filename)
 
         # Assign speaker roles using LLM
         roles = assign_speaker_roles(result["conversation"])
@@ -80,25 +79,16 @@ def handle_transcription_request(data):
             updated_speaker_blocks[speaker_role] = text
 
         return {
-            "job_id": job_id,
-            "lead_id": lead_id,
-            # "s3_link": s3_link,
-            "content": updated_speaker_blocks,  # Updated with role names
-            "conversation": updated_conversation,  # Updated with role names
-            "status": "success",
-            "message": "Transcription completed successfully"
+            "jobId": jobId,
+            "status": "COMPLETED",
+            "conversation": updated_conversation  # Updated with role names
         }
 
     except Exception as e:
-        logger.exception("Failed to handle transcription request.")
+        logger.exception(f"Failed to handle transcription request. Error: {str(e)}")
         return {
-            "job_id": data.get("job_id", ""),
-            "lead_id": data.get("lead_id", ""),
-            "s3_link": data.get("s3_link", ""),
-            "status": "error",
-            "message": str(e),
-            "content": {},
-            "conversation": []
+            "jobId": jobId,
+            "status": "FAILED"
         }
 
 def download_audio(audio_url, local_filename):
@@ -126,27 +116,27 @@ def download_audio(audio_url, local_filename):
         logger.error(f"Error saving audio file: {str(e)}")
         raise Exception(f"Failed to save audio file: {str(e)}")
 
-# def process_transcription(audio_url, local_filename):
-def process_transcription(s3_link):
+def process_transcription(fileUrl, local_filename): #Uncomment this when we get link
+# def process_transcription(fileUrl):
     """
     Main function to handle audio transcription and speaker diarization.
 
     Args:
-        audio_url (str): URL to download the audio
+        fileUrl (str): URL to download the audio
         local_filename (str): Temporary filename to save audio
 
     Returns:
         dict: Transcription result containing speaker blocks and conversation
     """
     try:
-        # download_audio(audio_url, local_filename)
-        # audio = whisperx.load_audio(local_filename)
-        audio = whisperx.load_audio(s3_link)
+
+        download_audio(fileUrl, local_filename) #Uncomment this when we get link
+        audio = whisperx.load_audio(local_filename) #Uncomment this when we get link
+        # audio = whisperx.load_audio(fileUrl)
 
         # model = whisperx.load_model("small", device="cpu", compute_type="float32")
         # Transcribe the audio
         result = model.transcribe(audio, language="en")
-
         
         # Align segments
         model_a, metadata = whisperx.load_align_model(language_code=result["language"], device="cpu")
@@ -177,13 +167,14 @@ def process_transcription(s3_link):
     except Exception as e:
         logger.error(f"Transcription failed: {str(e)}")
         raise Exception(f"Transcription processing failed: {str(e)}")
-    # finally:
-    #     try:
-    #         if os.path.exists(local_filename):
-    #             os.remove(local_filename)
-    #             logger.info(f"Cleaned up file {local_filename}")
-    #     except Exception as e:
-    #         logger.warning(f"Failed to delete temp file {local_filename}: {str(e)}")
+        
+    finally:  #Uncomment whole block this when we get link
+        try:
+            if os.path.exists(local_filename):
+                os.remove(local_filename)
+                logger.info(f"Cleaned up file {local_filename}")
+        except Exception as e:
+            logger.warning(f"Failed to delete temp file {local_filename}: {str(e)}")
 
 def format_speaker_blocks(segments):
     """
