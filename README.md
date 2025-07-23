@@ -17,4 +17,5 @@ STEPS TO RUN
 
 - You can view the results on the terminal where you ran testwebhook.py.
 
-Picture
+
+<img width="2085" height="3840" alt="Untitled diagram _ Mermaid Chart-2025-07-22-051407" src="https://github.com/user-attachments/assets/fb78163f-d18b-48fa-9f88-5b3e02b4f4b5" />
