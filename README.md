@@ -8,7 +8,7 @@ FILE DETAILS
 
 
 IMPORTANT
-- .env file should consist of llm ky, hugging face token and TRANSCRIPTION_WEBHOOK_URL
+- .env file should consist of LLM API key, hugging face token and TRANSCRIPTION_WEBHOOK_URL
 
 STEPS TO RUN
 - Run app.py
