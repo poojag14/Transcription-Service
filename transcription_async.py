@@ -17,24 +17,16 @@ def process_transcription_async(webhook_url, data):
     try:
         result = handle_transcription_request(data)
 
-        final_payload = {
-            "task_type": "transcription",
-            "original_request_payload": data,
-            "transcription_result": result
-        }
-
         logging.info(f"Background task: Transcription finished. Attempting to post result to webhook: {webhook_url}")
-        response = requests.post(webhook_url, json=final_payload, headers={"Content-Type": "application/json"})
+        response = requests.post(webhook_url, json=result, headers={"Content-Type": "application/json"})
         response.raise_for_status()
         logging.info(f"Background task: Successfully posted transcription result to webhook. Status: {response.status_code}")
 
     except requests.exceptions.RequestException as req_e:
         logging.error(f"Background task: Error posting transcription result to webhook {webhook_url}: {req_e}")
         error_payload = {
-            "task_type": "transcription",
-            "original_request_payload": data,
-            "status": "error",
-            "message": f"Failed to deliver transcription result to webhook: {str(req_e)}"
+            "jobId": data.get("jobId"),
+            "status": "FAILED"
         }
         try:
             requests.post(webhook_url, json=error_payload, headers={"Content-Type": "application/json"})
@@ -43,10 +35,8 @@ def process_transcription_async(webhook_url, data):
     except Exception as e:
         logging.error(f"Background task: An error occurred during transcription processing for data: {data}. Error: {e}", exc_info=True)
         error_payload = {
-            "task_type": "transcription",
-            "original_request_payload": data,
-            "status": "error",
-            "message": f"Transcription processing failed: {str(e)}"
+            "jobId": data.get("jobId"),
+            "status": "FAILED"
         }
         try:
             requests.post(webhook_url, json=error_payload, headers={"Content-Type": "application/json"})
