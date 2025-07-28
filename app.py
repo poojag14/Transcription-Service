@@ -10,8 +10,8 @@ import concurrent.futures
 from transcription_async import process_transcription_async
 
 app = Flask(__name__)
-# Initialize the ProcessPoolExecutor globally
-executor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
+# Initialize the ThreadPoolExecutor globally
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 # Configure basic logging for the Flask app
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
