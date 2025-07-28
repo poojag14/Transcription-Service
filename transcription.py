@@ -27,15 +27,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Attempt to get Hugging Face auth token from environment variable
 hf_token = os.getenv("HF_AUTH_TOKEN")
 
-# Load WhisperX ASR model once at import time for efficiency
-model = whisperx.load_model("small", device="cpu", compute_type="float32")
-
-# Initialize diarization pipeline with authentication token and CPU device
-diarize_model = whisperx.diarize.DiarizationPipeline(
-    use_auth_token=hf_token,
-    device="cpu"
-)
-
 def handle_transcription_request(data):
     """
     Parses input JSON and processes the transcription request.
@@ -70,13 +61,6 @@ def handle_transcription_request(data):
             # Replace speaker ID with assigned role if available
             turn["speaker"] = role_mapping.get(speaker, speaker)
             updated_conversation.append(turn)
-        
-        # Update speaker blocks with assigned roles
-        updated_speaker_blocks = {}
-        for speaker_id, text in result["speaker_blocks"].items():
-            # Replace speaker ID with assigned role
-            speaker_role = role_mapping.get(speaker_id, speaker_id)
-            updated_speaker_blocks[speaker_role] = text
 
         return {
             "jobId": jobId,
@@ -134,7 +118,7 @@ def process_transcription(fileUrl, local_filename): #Uncomment this when we get 
         audio = whisperx.load_audio(local_filename) #Uncomment this when we get link
         # audio = whisperx.load_audio(fileUrl)
 
-        # model = whisperx.load_model("small", device="cpu", compute_type="float32")
+        model = whisperx.load_model("small", device="cpu", compute_type="float32")
         # Transcribe the audio
         result = model.transcribe(audio, language="en")
         
@@ -143,10 +127,10 @@ def process_transcription(fileUrl, local_filename): #Uncomment this when we get 
         result = whisperx.align(result["segments"], model_a, metadata, audio, device="cpu",
                                 return_char_alignments=False)
 
-        # diarize_model = whisperx.diarize.DiarizationPipeline(
-        #     use_auth_token=hf_token,
-        #     device="cpu"
-        # )
+        diarize_model = whisperx.diarize.DiarizationPipeline(
+            use_auth_token=hf_token,
+            device="cpu"
+        )
 
         # Perform speaker diarization
         diarize_segments = diarize_model(audio)
@@ -209,26 +193,22 @@ def assign_speaker_roles(conversation):
         convo_lines.append(f"{turn['speaker']}: {turn['text']}")
     convo_string = "\n".join(convo_lines)
 
-    # FIXED: Corrected the quotes in the example JSON output
     system_prompt = (
-        "Determine speaker roles in a sales conversation. Rules:\n"
-        "1. LEAD is the prospective customer: discusses their background, needs, asks questions\n"
-        "2. AGENT is the company representative: provides information about products/services\n"
-        "3. Assign roles only to SPEAKER_00 and SPEAKER_01\n"
-        '4. Output MUST be JSON format ONLY: {"SPEAKER_00": "Role", "SPEAKER_01": "Role"}\n'
-        "5. Do NOT include any other text besides the JSON object\n"
-        "6. Roles must be either 'Lead' or 'Agent'"
+        "You are an expert AI assistant analyzing a sales call transcript between an EdTech agent and a student lead (or their guardian). "
+        "Your primary goal is to accurately identify and assign one of two roles — *'Lead'* or *'Agent'* — to all speakers present in the conversation, *even if the diarization tool has incorrectly assigned multiple speaker IDs to a single individual.*\n"
+        "Regardless of how many speaker IDs are present (e.g., SPEAKER_00, SPEAKER_01, SPEAKER_02, etc.), you must consolidate them so that the final output assigns roles to *exactly two unique individuals: one 'Lead' and one 'Agent'.*\n\n"
+        "Here are the rules for role assignment and output format:\n"
+        "1. *'Lead'*: This role belongs to the prospective student or their guardian. They will typically be asking questions about courses, fees, admissions processes, or expressing interest in enrolling.\n"
+        "2. *'Agent'*: This role belongs to the EdTech representative. They will be answering questions, explaining course offerings, providing program details, discussing payment plans, and generally guiding or persuading the lead.\n"
+        "3. *Crucial Consolidation*: The diarization tool (WhisperX) may sometimes incorrectly split a single person's speech into multiple speaker IDs (e.g., SPEAKER_00 and SPEAKER_02 might both be the 'Lead'). You *must* identify such instances by analyzing the content and continuity of speech. All speaker IDs that belong to the same person must be assigned the *same consolidated role* ('Lead' or 'Agent').\n"
+        "4. *Final Role Count*: Your output must reflect *exactly one 'Lead' and one 'Agent'*. All distinct speaker IDs from the input conversation must be mapped to one of these two consolidated roles.\n"
+        "5. *Output Format*: Your output MUST be a JSON object where each detected speaker ID from the input is mapped to its assigned role ('Lead' or 'Agent').\n"
+        "6. *No Extra Content*: Output ONLY the JSON. Do not include any explanations, comments, or additional formatting.\n"
     )
-
     user_prompt = f"""
         CONVERSATION:
         {convo_string}
-
-        OUTPUT INSTRUCTIONS:
-        - Analyze who is customer (Lead) and who is representative (Agent)
-        - Return ONLY the JSON object with role assignments
-        - Example output: {{"SPEAKER_00": "Lead", "SPEAKER_01": "Agent"}}
-        - Do NOT include any explanations or additional text
+        OUTPUT:
         """
 
     try:
